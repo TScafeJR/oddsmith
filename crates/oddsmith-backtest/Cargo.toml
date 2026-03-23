@@ -1,0 +1,25 @@
+[package]
+name = "oddsmith-backtest"
+description = "Runs backtests against the database: loads trades, simulates, persists runs, exports parquet."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+parquet = ["dep:parquet", "parquet/snap"]
+
+[dependencies]
+oddsmith-core.workspace = true
+oddsmith-store.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+postgres.workspace = true
+serde_json.workspace = true
+ureq.workspace = true
+parquet = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true

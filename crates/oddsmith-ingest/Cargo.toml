@@ -1,0 +1,20 @@
+[package]
+name = "oddsmith-ingest"
+description = "Polymarket and poll data ingestion."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+oddsmith-store.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+ureq.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

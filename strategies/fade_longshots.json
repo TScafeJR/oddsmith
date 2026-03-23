@@ -1,0 +1,11 @@
+{
+  "name": "fade_longshots",
+  "description": "Buy NO tokens when YES implied probability is <10% (fade overpriced longshots)",
+  "side": "NO",
+  "min_price": 0.00,
+  "max_price": 0.10,
+  "role": "MAKER",
+  "initial_capital": 10000,
+  "position_size": 100,
+  "bucket_width": 2
+}

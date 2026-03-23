@@ -1,0 +1,34 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+authors = ["Tyrone Scafe"]
+
+[workspace.dependencies]
+oddsmith-core = { path = "crates/oddsmith-core" }
+oddsmith-store = { path = "crates/oddsmith-store" }
+oddsmith-backtest = { path = "crates/oddsmith-backtest" }
+oddsmith-ingest = { path = "crates/oddsmith-ingest" }
+
+anyhow = "=1.0.104"
+bytes = "=1.12.1"
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock", "serde"] }
+clap = { version = "=4.6.7", features = ["derive"] }
+native-tls = "=0.2.18"
+postgres = { version = "=0.19.14", features = ["with-chrono-0_4", "with-serde_json-1"] }
+postgres-native-tls = "=0.5.3"
+postgres-types = "=0.2.14"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+ureq = { version = "=3.5.2", default-features = false, features = ["native-tls", "json"] }
+parquet = { version = "=60.1.0", default-features = false }
+tempfile = "=3.27.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

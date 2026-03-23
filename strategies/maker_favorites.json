@@ -1,0 +1,11 @@
+{
+  "name": "maker_favorites",
+  "description": "Buy YES tokens on favorites priced 50-95 cents",
+  "side": "YES",
+  "min_price": 0.50,
+  "max_price": 0.95,
+  "role": "MAKER",
+  "initial_capital": 10000,
+  "position_size": 100,
+  "bucket_width": 5
+}

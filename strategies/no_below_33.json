@@ -1,0 +1,11 @@
+{
+  "name": "no_below_33",
+  "description": "Buy NO tokens when YES implied probability is below 33% (longshots are overpriced, bet against them)",
+  "side": "NO",
+  "min_price": 0.00,
+  "max_price": 0.33,
+  "role": "MAKER",
+  "initial_capital": 10000,
+  "position_size": 100,
+  "bucket_width": 0.01
+}

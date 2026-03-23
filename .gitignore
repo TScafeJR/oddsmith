@@ -1,0 +1,24 @@
+# Rust
+/target
+
+# Environment (contains Supabase credentials)
+.env
+
+# Output
+output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Local reference PDFs
+*.pdf
+
+# Local MCP configs (contain API keys)
+.mcp.json
+.cursor/

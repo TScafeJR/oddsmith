@@ -1,0 +1,11 @@
+{
+  "name": "fade_extreme_favorites",
+  "description": "Buy NO tokens when YES implied probability is >95% (fade overpriced extreme favorites)",
+  "side": "NO",
+  "min_price": 0.95,
+  "max_price": 1.00,
+  "role": "MAKER",
+  "initial_capital": 10000,
+  "position_size": 100,
+  "bucket_width": 1
+}
