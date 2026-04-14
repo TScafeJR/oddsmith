@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FLB Calibration Analysis</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;color:#333;padding:20px}
+.container{max-width:1200px;margin:0 auto}
+h1{font-size:24px;margin-bottom:4px}
+.subtitle{color:#666;font-size:14px;margin-bottom:20px}
+.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #dee2e6}
+.tab{padding:10px 20px;cursor:pointer;border:none;background:none;font-size:14px;font-weight:500;color:#666;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab:hover{color:#333}
+.tab.active{color:#d63031;border-bottom-color:#d63031}
+.panel{display:none;background:#fff;border-radius:8px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.panel.active{display:block}
+.chart-container{position:relative;width:100%;max-width:900px;margin:0 auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f1f3f5;padding:10px 12px;text-align:right;font-weight:600;border-bottom:2px solid #dee2e6;cursor:pointer;user-select:none;white-space:nowrap}
+th:first-child{text-align:left}
+th:hover{background:#e9ecef}
+td{padding:8px 12px;text-align:right;border-bottom:1px solid #f1f3f5}
+td:first-child{text-align:left;font-weight:500}
+tr:hover{background:#f8f9fa}
+.positive{color:#00b894}.negative{color:#d63031}
+.low-n{opacity:0.5}
+.controls{display:flex;gap:16px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.controls label{font-size:13px;font-weight:500}
+.controls select,.controls input{padding:6px 10px;border:1px solid #dee2e6;border-radius:4px;font-size:13px}
+.stats-row{display:flex;gap:24px;margin-top:16px;flex-wrap:wrap}
+.stat-card{background:#f8f9fa;border-radius:8px;padding:16px;flex:1;min-width:150px}
+.stat-card .label{font-size:12px;color:#666;text-transform:uppercase;letter-spacing:0.5px}
+.stat-card .value{font-size:24px;font-weight:700;margin-top:4px}
+.calc-grid{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start}
+.calc-input{display:flex;flex-direction:column;gap:12px}
+.calc-input label{font-size:13px;font-weight:500}
+.calc-input input{padding:8px 12px;border:1px solid #dee2e6;border-radius:4px;font-size:14px;width:100%}
+.calc-input button{padding:8px 16px;background:#d63031;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px}
+.calc-input button:hover{background:#c0392b}
+.legend{display:flex;gap:20px;justify-content:center;margin-top:12px;font-size:13px}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:12px;height:12px;border-radius:50%}
+.bucket-select{margin-bottom:16px}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:768px){
+body{padding:12px}
+h1{font-size:18px}
+.tabs{gap:2px}
+.tab{padding:8px 12px;font-size:12px}
+.controls{gap:8px}
+.controls label{font-size:12px}
+.controls select,.controls input{padding:4px 8px;font-size:12px}
+.stats-row{gap:12px}
+.stat-card{min-width:120px;padding:12px}
+.stat-card .value{font-size:18px}
+.calc-grid{grid-template-columns:1fr;gap:16px}
+table{font-size:12px}
+th,td{padding:6px 8px}
+}
+@media(max-width:480px){
+body{padding:8px}
+h1{font-size:16px}
+.tab{padding:6px 8px;font-size:11px}
+.stat-card{min-width:100px;padding:10px}
+.stat-card .label{font-size:10px}
+.stat-card .value{font-size:16px}
+th,td{padding:4px 6px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1 id="title">Calibration Curve: FLB Analysis</h1>
+<p class="subtitle" id="subtitle"></p>
+
+<div class="tabs">
+<button class="tab active" onclick="showTab('chart')">Calibration Curve</button>
+<button class="tab" onclick="showTab('table')">Price Analysis</button>
+<button class="tab" onclick="showTab('calc')">Sensitivity Calculator</button>
+</div>
+
+<div id="chart-panel" class="panel active">
+<div class="controls bucket-select">
+<label>Bucket Width:</label>
+<select id="bucketWidth" onchange="rebuildChart()">
+<option value="0.01">1%</option>
+<option value="0.02">2%</option>
+<option value="0.05" selected>5%</option>
+<option value="0.10">10%</option>
+</select>
+<label>Min Trades:</label>
+<select id="minTrades" onchange="rebuildChart()">
+<option value="1">1</option>
+<option value="5">5</option>
+<option value="10" selected>10</option>
+<option value="50">50</option>
+<option value="100">100</option>
+</select>
+<label>Longshot &lt;</label>
+<input type="number" id="lsThresh" value="0.10" step="0.05" min="0.05" max="0.50" style="width:70px" onchange="rebuildChart()">
+<label>Favorite &gt;</label>
+<input type="number" id="favThresh" value="0.90" step="0.05" min="0.50" max="0.95" style="width:70px" onchange="rebuildChart()">
+</div>
+<div class="chart-container">
+<canvas id="calibrationChart"></canvas>
+</div>
+<div class="stats-row" id="statsRow"></div>
+</div>
+
+<div id="table-panel" class="panel">
+<div class="controls">
+<label>Price Range:</label>
+<select id="tableRange" onchange="rebuildTable()">
+<option value="all">All (0.01 - 1.00)</option>
+<option value="favorites">Favorites (0.50 - 1.00)</option>
+<option value="longshots">Longshots (0.01 - 0.50)</option>
+<option value="tail">Tail (0.90 - 1.00)</option>
+<option value="deep-tail">Deep Tail (0.95 - 1.00)</option>
+</select>
+<label>Min Trades:</label>
+<input type="number" id="tableMinN" value="3" min="1" max="1000" style="width:70px" onchange="rebuildTable()">
+</div>
+<div class="table-wrap" id="tableContainer"></div>
+</div>
+
+<div id="calc-panel" class="panel">
+<div class="calc-grid">
+<div class="calc-input">
+<label>Contract Price</label>
+<input type="number" id="calcPrice" value="0.95" step="0.01" min="0.01" max="0.99">
+<label>True Prob Start (%)</label>
+<input type="number" id="calcProbStart" value="90" step="0.1" min="0.1" max="99.9">
+<label>True Prob End (%)</label>
+<input type="number" id="calcProbEnd" value="99.9" step="0.1" min="0.1" max="99.99">
+<label>Step (%)</label>
+<input type="number" id="calcStep" value="0.5" step="0.1" min="0.01" max="10">
+<label>Risk Free Rate (%)</label>
+<input type="number" id="calcRf" value="@@RISK_FREE_PCT@@" step="0.1" min="0" max="20">
+<button onclick="runCalc()">Calculate</button>
+</div>
+<div id="calcResult"></div>
+</div>
+</div>
+</div>
+
+<script>
+const DATA = @@DATA_JSON@@;
+
+// --- Tabs ---
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(name + '-panel').classList.add('active');
+  event.target.classList.add('active');
+}
+
+// --- Init ---
+const raceLabel = DATA.race_filter || 'All Political';
+document.getElementById('title').textContent = 'Calibration Curve: FLB in ' + raceLabel.charAt(0).toUpperCase() + raceLabel.slice(1) + ' Markets';
+document.getElementById('subtitle').textContent = DATA.total_trades.toLocaleString() + ' prices, ' + DATA.total_markets.toLocaleString() + ' contracts';
+
+// --- Chart ---
+let chart = null;
+
+function buildBuckets(width, minN) {
+  const buckets = [];
+  for (let lo = 0; lo < 1.0; lo += width) {
+    const hi = Math.min(lo + width, 1.0);
+    const mid = (lo + hi) / 2;
+    let totalTrades = 0, totalWins = 0, totalMarkets = new Set();
+    for (const p of DATA.points) {
+      if (p.price >= lo && p.price < hi) {
+        totalTrades += p.n;
+        totalWins += Math.round(p.win_rate * p.n);
+        // approximate market count
+        totalMarkets.add(p.price);
+      }
+    }
+    if (totalTrades >= minN) {
+      buckets.push({
+        mid: Math.round(mid * 1000) / 1000,
+        n: totalTrades,
+        winRate: totalTrades > 0 ? totalWins / totalTrades : 0
+      });
+    }
+  }
+  return buckets;
+}
+
+function rebuildChart() {
+  const width = parseFloat(document.getElementById('bucketWidth').value);
+  const minN = parseInt(document.getElementById('minTrades').value);
+  const buckets = buildBuckets(width, minN);
+
+  // Use scatter-style {x,y} data so both axes are numeric 0-1
+  const actualPoints = buckets.map(b => ({ x: b.mid, y: b.winRate }));
+  const perfectLine = [{ x: 0, y: 0 }, { x: 1, y: 1 }];
+
+  if (chart) chart.destroy();
+
+  const ctx = document.getElementById('calibrationChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Perfect Calibration (45\u00b0)',
+          data: perfectLine,
+          borderColor: '#00b894',
+          borderDash: [8, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          showLine: true,
+          fill: false,
+          order: 2
+        },
+        {
+          label: 'Actual Win Rate',
+          data: actualPoints,
+          borderColor: '#d63031',
+          backgroundColor: '#d63031',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          showLine: true,
+          fill: false,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.datasetIndex === 1) {
+                const b = buckets[ctx.dataIndex];
+                return 'Price: ' + b.mid.toFixed(2) + '  Win Rate: ' + (b.winRate * 100).toFixed(1) + '%  (n=' + b.n.toLocaleString() + ')';
+              }
+              return 'Perfect Calibration';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Contract Price', font: { size: 14 } },
+          min: 0, max: 1,
+          ticks: { stepSize: 0.1, callback: v => v.toFixed(2) }
+        },
+        y: {
+          type: 'linear',
+          title: { display: true, text: 'Win Rate', font: { size: 14 } },
+          min: 0, max: 1,
+          ticks: { stepSize: 0.1, callback: v => (v * 100).toFixed(0) + '%' }
+        }
+      }
+    }
+  });
+
+  // FLB stats
+  const favThresh = parseFloat(document.getElementById('favThresh').value);
+  const lsThresh = parseFloat(document.getElementById('lsThresh').value);
+
+  let totalBias = 0;
+  let favEdgeSum = 0, favEdgeN = 0; // win_rate - price for favorites (positive = underpriced = FLB)
+  let lsDragSum = 0, lsDragN = 0;   // price - win_rate for longshots (positive = overpriced = FLB)
+
+  // FLB slope: linear regression of win_rate on price
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, regN = 0;
+
+  for (const b of buckets) {
+    totalBias += Math.abs(b.winRate - b.mid);
+    if (b.mid >= favThresh) {
+      favEdgeSum += (b.winRate - b.mid);
+      favEdgeN++;
+    }
+    if (b.mid <= lsThresh) {
+      lsDragSum += (b.mid - b.winRate);
+      lsDragN++;
+    }
+    sumX += b.mid; sumY += b.winRate;
+    sumXY += b.mid * b.winRate; sumX2 += b.mid * b.mid;
+    regN++;
+  }
+  const mae = regN > 0 ? totalBias / regN : 0;
+  const favEdge = favEdgeN > 0 ? favEdgeSum / favEdgeN : 0;
+  const lsDrag = lsDragN > 0 ? lsDragSum / lsDragN : 0;
+  const slope = regN > 1 ? (regN * sumXY - sumX * sumY) / (regN * sumX2 - sumX * sumX) : 1;
+
+  const favLabel = 'Favorite Edge (>' + (favThresh*100).toFixed(0) + '%)';
+  const lsLabel = 'Longshot Drag (<' + (lsThresh*100).toFixed(0) + '%)';
+
+  document.getElementById('statsRow').innerHTML =
+    statCard(favLabel, (favEdge > 0 ? '+' : '') + (favEdge * 100).toFixed(2) + '%', favEdge > 0 ? '#00b894' : '#d63031') +
+    statCard(lsLabel, (lsDrag > 0 ? '+' : '') + (lsDrag * 100).toFixed(2) + '%', lsDrag > 0 ? '#d63031' : '#00b894') +
+    statCard('FLB Slope', slope.toFixed(3), slope < 1 ? '#d63031' : '#00b894') +
+    statCard('Mean Abs Error', (mae * 100).toFixed(2) + '%');
+}
+
+function statCard(label, value, color) {
+  return '<div class="stat-card"><div class="label">' + label + '</div><div class="value" style="color:' + (color||'#333') + '">' + value + '</div></div>';
+}
+
+// --- Price Analysis Table ---
+function rebuildTable() {
+  const range = document.getElementById('tableRange').value;
+  const minN = parseInt(document.getElementById('tableMinN').value) || 1;
+  const rf = DATA.risk_free_rate;
+
+  let filtered = DATA.points.filter(p => p.n >= minN);
+  if (range === 'favorites') filtered = filtered.filter(p => p.price >= 0.50);
+  else if (range === 'longshots') filtered = filtered.filter(p => p.price < 0.50);
+  else if (range === 'tail') filtered = filtered.filter(p => p.price >= 0.90);
+  else if (range === 'deep-tail') filtered = filtered.filter(p => p.price >= 0.95);
+
+  let html = '<table><thead><tr>';
+  const cols = ['Price','Trades','Markets','Win Rate','Return if Won','Exp Return','Implied SD','Sharpe'];
+  cols.forEach((c, i) => {
+    html += '<th onclick="sortTable(' + i + ')">' + c + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  // Build rows: ROI returns (pay price, receive 1.0 if win, return = (1-price)/price)
+  const rows = filtered.map(p => {
+    const retWon = (1 - p.price) / p.price;
+    const expRet = p.win_rate / p.price - 1;
+    const sd = p.price > 0 ? Math.sqrt(p.win_rate * (1 - p.win_rate)) / p.price : 0;
+    const sharpe = sd > 0 ? (expRet - rf) / sd : 0;
+    return { price: p.price, n: p.n, markets: p.markets, winRate: p.win_rate, retWon, expRet, sd, sharpe };
+  });
+
+  window._tableRows = rows;
+  window._tableSortCol = -1;
+  window._tableSortAsc = true;
+
+  renderTableRows(rows);
+}
+
+function renderTableRows(rows) {
+  let html = '';
+  for (const r of rows) {
+    const lowN = r.n < 10 ? ' class="low-n"' : '';
+    html += '<tr' + lowN + '>';
+    html += '<td>' + r.price.toFixed(2) + '</td>';
+    html += '<td>' + r.n.toLocaleString() + '</td>';
+    html += '<td>' + r.markets + '</td>';
+    html += '<td>' + (r.winRate * 100).toFixed(1) + '%</td>';
+    html += '<td>' + (r.retWon * 100).toFixed(2) + '%</td>';
+    html += '<td class="' + (r.expRet >= 0 ? 'positive' : 'negative') + '">' + (r.expRet * 100).toFixed(2) + '%</td>';
+    html += '<td>' + (r.sd * 100).toFixed(2) + '%</td>';
+    html += '<td class="' + (r.sharpe >= 0 ? 'positive' : 'negative') + '">' + r.sharpe.toFixed(3) + '</td>';
+    html += '</tr>';
+  }
+  const container = document.getElementById('tableContainer');
+  const thead = '<table><thead><tr>' +
+    ['Price','Trades','Markets','Win Rate','Return if Won','Exp Return','Implied SD','Sharpe']
+    .map((c, i) => '<th onclick="sortTable(' + i + ')">' + c + '</th>').join('') +
+    '</tr></thead><tbody>' + html + '</tbody></table>';
+  container.innerHTML = thead;
+}
+
+function sortTable(col) {
+  if (!window._tableRows) return;
+  const keys = ['price','n','markets','winRate','retWon','expRet','sd','sharpe'];
+  const key = keys[col];
+  if (window._tableSortCol === col) window._tableSortAsc = !window._tableSortAsc;
+  else { window._tableSortCol = col; window._tableSortAsc = true; }
+  const asc = window._tableSortAsc;
+  window._tableRows.sort((a, b) => asc ? a[key] - b[key] : b[key] - a[key]);
+  renderTableRows(window._tableRows);
+}
+
+// --- Sensitivity Calculator ---
+function runCalc() {
+  const price = parseFloat(document.getElementById('calcPrice').value);
+  const probStart = parseFloat(document.getElementById('calcProbStart').value) / 100;
+  const probEnd = parseFloat(document.getElementById('calcProbEnd').value) / 100;
+  const step = parseFloat(document.getElementById('calcStep').value) / 100;
+  const rf = parseFloat(document.getElementById('calcRf').value) / 100;
+
+  if (price <= 0 || price >= 1 || probStart >= probEnd || step <= 0) {
+    document.getElementById('calcResult').innerHTML = '<p>Invalid inputs.</p>';
+    return;
+  }
+
+  const retWon = (1 - price) / price;
+
+  let html = '<table><thead><tr>';
+  html += '<th>Price</th><th>Return if Won</th><th>True Prob</th><th>Exp Return</th><th>Implied SD</th><th>Risk Free</th><th>Sharpe</th>';
+  html += '</tr></thead><tbody>';
+
+  for (let prob = probStart; prob <= probEnd + 0.0001; prob += step) {
+    const p = Math.min(prob, 0.9999);
+    const expRet = p / price - 1;
+    const sd = Math.sqrt(p * (1 - p)) / price;
+    const sharpe = sd > 0 ? (expRet - rf) / sd : 0;
+
+    html += '<tr>';
+    html += '<td>' + price.toFixed(2) + '</td>';
+    html += '<td>' + (retWon * 100).toFixed(2) + '%</td>';
+    html += '<td>' + (p * 100).toFixed(2) + '%</td>';
+    html += '<td class="' + (expRet >= 0 ? 'positive' : 'negative') + '">' + (expRet * 100).toFixed(2) + '%</td>';
+    html += '<td>' + (sd * 100).toFixed(2) + '%</td>';
+    html += '<td>' + (rf * 100).toFixed(1) + '%</td>';
+    html += '<td class="' + (sharpe >= 0 ? 'positive' : 'negative') + '">' + sharpe.toFixed(3) + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('calcResult').innerHTML = '<div class="table-wrap">' + html + '</div>';
+}
+
+// --- Boot ---
+rebuildChart();
+rebuildTable();
+runCalc();
+</script>
+</body>
+</html>

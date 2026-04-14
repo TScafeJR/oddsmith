@@ -20,6 +20,7 @@ oddsmith-core.workspace = true
 oddsmith-store.workspace = true
 oddsmith-backtest.workspace = true
 oddsmith-ingest.workspace = true
+oddsmith-analysis.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true

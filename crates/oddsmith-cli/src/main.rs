@@ -6,6 +6,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
+use oddsmith_analysis::cli::AnalyzeCommand;
 use oddsmith_ingest::cli::IngestCommand;
 use oddsmith_store::Ctx;
 
@@ -39,6 +40,9 @@ enum Command {
     Ingest(IngestCommand),
     /// Simulate a trading strategy on resolved political markets
     Backtest(backtest::BacktestArgs),
+    /// Generate statistics, CSVs and charts from ingested data
+    #[command(subcommand)]
+    Analyze(AnalyzeCommand),
     /// Real-time terminal display of live political markets
     Monitor(MonitorArgs),
 }
@@ -76,6 +80,7 @@ fn run(cli: Cli) -> Result<()> {
         }
         Command::Ingest(cmd) => cmd.run(&ctx),
         Command::Backtest(args) => backtest::run(&args, &ctx),
+        Command::Analyze(cmd) => cmd.run(&ctx),
         Command::Monitor(_) => {
             println!("monitor mode...");
             bail!("not yet implemented")

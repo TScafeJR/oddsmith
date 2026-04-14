@@ -898,6 +898,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "oddsmith-analysis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "oddsmith-store",
+ "postgres",
+]
+
+[[package]]
 name = "oddsmith-backtest"
 version = "0.1.0"
 dependencies = [
@@ -919,6 +930,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "oddsmith-analysis",
  "oddsmith-backtest",
  "oddsmith-core",
  "oddsmith-ingest",

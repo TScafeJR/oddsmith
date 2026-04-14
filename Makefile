@@ -34,3 +34,4 @@ clean:
 # make migrate
 # make run ARGS="ingest markets --type presidential"
 # make run ARGS="backtest --min-price 0.50"
+# make run ARGS="analyze all --output-dir ./output"
