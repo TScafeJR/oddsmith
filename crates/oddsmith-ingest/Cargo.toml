@@ -1,6 +1,6 @@
 [package]
 name = "oddsmith-ingest"
-description = "Polymarket and poll data ingestion."
+description = "Polymarket, Polygon and poll data ingestion."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

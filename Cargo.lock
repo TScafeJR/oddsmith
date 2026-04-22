@@ -904,8 +904,10 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "oddsmith-ingest",
  "oddsmith-store",
  "postgres",
+ "ureq",
 ]
 
 [[package]]

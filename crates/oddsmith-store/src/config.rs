@@ -14,6 +14,7 @@ pub struct Config {
     pub clob_host: String,
     pub gamma_host: String,
     pub data_api_host: String,
+    pub alchemy_polygon_url: String,
     pub workers: usize,
     pub batch_size: usize,
     pub verbose: bool,
@@ -28,6 +29,7 @@ impl Default for Config {
             clob_host: "https://clob.polymarket.com".into(),
             gamma_host: "https://gamma-api.polymarket.com".into(),
             data_api_host: "https://data-api.polymarket.com".into(),
+            alchemy_polygon_url: String::new(),
             workers: 4,
             batch_size: 500,
             verbose: false,
@@ -55,6 +57,7 @@ pub fn load() -> Result<Config> {
         clob_host: env_or("CLOB_HOST", &defaults.clob_host),
         gamma_host: env_or("GAMMA_HOST", &defaults.gamma_host),
         data_api_host: env_or("DATA_API_HOST", &defaults.data_api_host),
+        alchemy_polygon_url: env::var("ALCHEMY_POLYGON_URL").unwrap_or_default().trim().to_string(),
         ..defaults
     })
 }

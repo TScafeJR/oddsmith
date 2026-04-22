@@ -100,7 +100,7 @@ pub fn round_half_away_trunc(x: f64) -> f64 {
     if t != 0.0 { t } else { 0.0f64.copysign(x) }
 }
 
-/// Half away from zero via `floor(|x| + 0.5)`.
+/// Half away from zero via `floor(|x| + 0.5)` (used by the wallet reports).
 pub fn round_half_away_floor(x: f64) -> f64 {
     if x.is_nan() || x.is_infinite() {
         return x;

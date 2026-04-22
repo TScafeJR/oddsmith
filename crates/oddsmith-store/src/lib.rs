@@ -12,6 +12,7 @@ pub mod db;
 pub mod http;
 pub mod markets;
 pub mod migrations;
+pub mod onchain;
 pub mod orderbook;
 pub mod polls;
 pub mod trades;

@@ -1,4 +1,4 @@
-//! The shared HTTP client setup. Every outbound request (Polymarket,
+//! The shared HTTP client setup. Every outbound request (Polymarket, Alchemy,
 //! Supabase Storage) goes through an agent built here so TLS and timeouts are consistent.
 
 use std::time::Duration;

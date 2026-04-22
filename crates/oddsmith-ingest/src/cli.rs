@@ -1,5 +1,7 @@
 //! `oddsmith ingest` subcommands.
 
+mod onchain;
+
 use std::path::Path;
 use std::sync::Arc;
 
@@ -11,6 +13,8 @@ use oddsmith_store::trades::Trade;
 use oddsmith_store::{Ctx, Db, price_bucket};
 use serde_json::{Value as Json, json};
 
+pub use onchain::OnchainTransfersArgs;
+
 use crate::polling::ingest::parse_directory;
 use crate::polling::matching::match_polls_to_markets;
 use crate::polling::transform::compute_implied_probabilities;
@@ -20,7 +24,7 @@ use crate::polymarket::gamma::{GammaClient, GammaEvent, GammaMarket, GammaTag, e
 use crate::polymarket::ratelimit::RateLimiter;
 use crate::text::{equal_fold, lower, parse_rfc3339, strip_ws};
 
-/// Ingest data from Polymarket and polling sources.
+/// Ingest data from Polymarket, Polygon and polling sources.
 #[derive(Debug, Subcommand)]
 pub enum IngestCommand {
     /// Discover and ingest markets from Polymarket
@@ -31,6 +35,13 @@ pub enum IngestCommand {
     Polls(PollsArgs),
     /// Auto-match polls to Polymarket markets by race/state/candidate
     Match(MatchArgs),
+    /// Ingest Polygon asset transfers for Polymarket wallets (Alchemy)
+    #[command(
+        name = "onchain-transfers",
+        long_about = "Requires ALCHEMY_POLYGON_URL. Seeds from wallet_profiles (--top) or --addresses-file. \
+                      Filters known Polymarket protocol contracts."
+    )]
+    OnchainTransfers(OnchainTransfersArgs),
 }
 
 #[derive(Debug, Args)]
@@ -79,6 +90,7 @@ impl IngestCommand {
             IngestCommand::Trades(a) => run_trades(a, ctx),
             IngestCommand::Polls(a) => run_polls(a, ctx),
             IngestCommand::Match(_) => run_match(ctx),
+            IngestCommand::OnchainTransfers(a) => onchain::run(a, ctx),
         }
     }
 }
@@ -479,6 +491,11 @@ mod tests {
         let IngestCommand::Polls(p) = parse(&["polls"]) else { panic!() };
         assert_eq!((p.source.as_str(), p.data_dir.as_str()), ("538", "./data/polls"));
         assert!(matches!(parse(&["match"]), IngestCommand::Match(_)));
+        let IngestCommand::OnchainTransfers(o) = parse(&["onchain-transfers", "--top", "5", "--clear"]) else {
+            panic!()
+        };
+        assert_eq!((o.top_n, o.direction.as_str(), o.max_pages, o.batch_rows, o.clear), (5, "both", 100, 300, true));
+        assert_eq!(o.addresses_file, "");
     }
 
     #[test]

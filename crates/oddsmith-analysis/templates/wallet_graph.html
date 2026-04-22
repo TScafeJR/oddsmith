@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallet Analysis | oddsmith</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0a0a0a; color: #eee; font-family: system-ui, sans-serif; }
+  #tabs { position: fixed; top: 0; left: 0; right: 0; z-index: 30; background: #111; display: flex; border-bottom: 1px solid #333; }
+  .tab { padding: 12px 24px; cursor: pointer; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; }
+  .tab:hover { background: #1a1a1a; }
+  .tab.active { border-bottom-color: #3b82f6; color: #3b82f6; }
+  .view { display: none; position: absolute; top: 44px; left: 0; right: 0; bottom: 0; }
+  .view.active { display: block; }
+
+  /* Graph view */
+  #graphView svg { width: 100%; height: 100%; }
+  #controls { position: fixed; top: 56px; left: 16px; z-index: 10; background: #1a1a1a; padding: 16px; border-radius: 8px; font-size: 13px; max-width: 280px; }
+  #controls h3 { margin: 0 0 8px; }
+  #controls label { display: block; margin: 4px 0; }
+  #tooltip { position: fixed; background: #222; border: 1px solid #444; padding: 8px 12px; border-radius: 6px; font-size: 12px; pointer-events: none; display: none; z-index: 20; }
+  .legend { position: fixed; bottom: 16px; right: 16px; background: #1a1a1a; padding: 12px; border-radius: 8px; font-size: 12px; }
+  .legend div { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .legend span { display: inline-block; width: 24px; height: 4px; border-radius: 2px; }
+
+  /* Table view */
+  #tableView { padding: 16px; overflow: auto; }
+  #tableView h2 { margin: 0 0 12px; font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { position: sticky; top: 0; background: #1a1a1a; padding: 8px 12px; text-align: right; cursor: pointer; user-select: none; border-bottom: 2px solid #333; white-space: nowrap; }
+  th:first-child { text-align: left; }
+  th:hover { color: #3b82f6; }
+  th.sorted { color: #3b82f6; }
+  th.sorted::after { content: " ▼"; }
+  th.sorted.asc::after { content: " ▲"; }
+  td { padding: 6px 12px; text-align: right; border-bottom: 1px solid #1a1a1a; }
+  td:first-child { text-align: left; font-family: monospace; font-size: 12px; }
+  tr:hover { background: #1a1a2a; }
+  .search { margin-bottom: 12px; }
+  .search input { background: #1a1a1a; border: 1px solid #333; color: #eee; padding: 8px 12px; border-radius: 6px; width: 320px; font-size: 13px; }
+  td:first-child { cursor: pointer; }
+  td:first-child:hover { color: #3b82f6; text-decoration: underline; }
+  .addr-links { display: inline-flex; gap: 6px; align-items: center; }
+  .addr-links a { color: #888; font-size: 11px; text-decoration: none; }
+  .addr-links a:hover { color: #3b82f6; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #22c55e; color: #000; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 500; display: none; z-index: 50; }
+  @media (max-width: 768px) {
+    #tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { padding: 10px 16px; font-size: 13px; white-space: nowrap; }
+    #controls { position: fixed; top: auto; bottom: 0; left: 0; right: 0; max-width: none; border-radius: 12px 12px 0 0; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; z-index: 10; }
+    #controls h3 { width: 100%; margin: 0; font-size: 14px; }
+    #controls p { width: 100%; margin: 0; font-size: 12px; }
+    #controls label { margin: 0; font-size: 12px; }
+    .legend { bottom: auto; top: 56px; right: 8px; padding: 8px; font-size: 11px; }
+    #tableView { padding: 12px; }
+    #tableView h2 { font-size: 16px; }
+    table { font-size: 12px; }
+    th { padding: 6px 8px; font-size: 11px; }
+    td { padding: 5px 8px; font-size: 11px; }
+    .search input { width: 100%; }
+    #tableView { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  }
+  @media (max-width: 480px) {
+    .tab { padding: 8px 12px; font-size: 12px; }
+    #controls { padding: 10px 12px; }
+    th, td { padding: 4px 6px; font-size: 10px; }
+  }
+</style>
+</head><body>
+<div id="tabs">
+  <div class="tab active" data-view="graphView">Network Graph</div>
+  <div class="tab" data-view="tableView">Whale Leaderboard</div>
+</div>
+
+<div id="graphView" class="view active">
+  <div id="controls">
+    <h3>@@GRAPH_TITLE@@</h3>
+    <p>@@N_NODES@@ nodes, @@N_EDGES@@ edges</p>
+    <label>Min link score: <input type="range" id="minScore" min="@@SLIDER_MIN@@" max="@@SLIDER_MAX@@" step="@@SLIDER_STEP@@" value="@@SLIDER_VAL@@"> <span id="scoreVal">@@SLIDER_VAL@@</span></label>
+    <label@@SELF_ROW_DISPLAY@@><input type="checkbox" id="selfOnly"> Self-trades only</label>
+  </div>
+  <div class="legend">
+    <div><span style="background:#22c55e"></span> Low score</div>
+    <div><span style="background:#eab308"></span> Medium</div>
+    <div><span style="background:#ef4444"></span> High</div>
+    @@LEGEND_EXTRA@@
+  </div>
+  <svg></svg>
+</div>
+
+<div id="tableView" class="view">
+  <h2>Top Wallets</h2>
+  <div class="search"><input type="text" id="walletSearch" placeholder="Search by address..."></div>
+  <table>
+    <thead><tr>
+      <th data-key="address">Address</th>
+      <th data-key="pseudonym">Name</th>
+      <th data-key="profit" class="sorted">PM Profit (All)</th>
+      <th data-key="totalVolume">Ingested Vol</th>
+      <th data-key="avgTradeSize">Avg Size (Ing.)</th>
+      <th data-key="totalTrades">Trades (Ing.)</th>
+      <th data-key="uniqueMarkets">Markets (Ing.)</th>
+      <th data-key="makerVolume">Maker Vol (Ing.)</th>
+      <th data-key="takerVolume">Taker Vol (Ing.)</th>
+      <th data-key="makerPct">Maker %</th>
+      <th data-key="pctVolume">Vol %ile</th>
+      <th data-key="pctTrades">Trades %ile</th>
+      <th data-key="pctAvgSize">Avg Size %ile</th>
+      <th data-key="pctMarkets">Markets %ile</th>
+    </tr></thead>
+    <tbody id="walletBody"></tbody>
+  </table>
+</div>
+
+<div id="tooltip"></div>
+<div id="toast">Copied!</div>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+function copyAddr(addr) {
+  navigator.clipboard.writeText(addr).then(() => {
+    const t = document.getElementById("toast");
+    t.textContent = "Copied " + addr.slice(0,10) + "...";
+    t.style.display = "block";
+    setTimeout(() => t.style.display = "none", 1500);
+  });
+}
+const graphOnchain = @@GRAPH_ONCHAIN@@;
+const nodes = @@NODES_JSON@@;
+const edges = @@EDGES_JSON@@;
+const wallets = @@WALLETS_JSON@@;
+
+// --- Tabs ---
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(tab.dataset.view).classList.add("active");
+  });
+});
+
+// --- Graph ---
+const svg = d3.select("svg");
+const width = window.innerWidth, height = window.innerHeight - 44;
+svg.attr("viewBox", [0, 0, width, height]);
+
+const g = svg.append("g");
+svg.call(d3.zoom().on("zoom", e => g.attr("transform", e.transform)));
+
+const maxVol = d3.max(nodes, d => d.volume) || 1;
+const radius = d => Math.max(3, Math.sqrt(d.volume / maxVol) * 20);
+
+function edgeColor(d) {
+  if (!graphOnchain && d.selfTrade) return "#a855f7";
+  if (d.score > 0.7) return "#ef4444";
+  if (d.score > 0.4) return "#eab308";
+  return "#22c55e";
+}
+
+const sim = d3.forceSimulation(nodes)
+  .force("link", d3.forceLink(edges).id(d => d.id).distance(80))
+  .force("charge", d3.forceManyBody().strength(-120))
+  .force("center", d3.forceCenter(width/2, height/2))
+  .force("collision", d3.forceCollide().radius(d => radius(d) + 2));
+
+const link = g.selectAll("line").data(edges).join("line")
+  .attr("stroke", edgeColor)
+  .attr("stroke-width", d => Math.max(1, Math.log(d.trades)))
+  .attr("stroke-opacity", 0.6);
+
+const node = g.selectAll("circle").data(nodes).join("circle")
+  .attr("r", radius)
+  .attr("fill", "#3b82f6")
+  .attr("fill-opacity", 0.8)
+  .attr("stroke", "#fff")
+  .attr("stroke-width", 0.5)
+  .call(d3.drag()
+    .on("start", (e,d) => { if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+    .on("drag", (e,d) => { d.fx=e.x; d.fy=e.y; })
+    .on("end", (e,d) => { if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+const tooltip = d3.select("#tooltip");
+node.on("mouseover", (e,d) => {
+  tooltip.style("display","block").html(
+    "<b>" + d.id.slice(0,10) + "..." + d.id.slice(-6) + "</b> <span style='color:#888;font-size:11px'>(click to copy)</span><br>" +
+    "Volume: $" + d.volume.toLocaleString(undefined,{maximumFractionDigits:2}) + "<br>" +
+    "Trades: " + d.trades + " | Markets: " + d.markets + "<br>" +
+    "Avg size: $" + d.avgTradeSize.toLocaleString(undefined,{maximumFractionDigits:2}) + "<br>" +
+    "Maker: " + (d.makerPct*100).toFixed(1) + "%"
+  );
+}).on("mousemove", e => {
+  tooltip.style("left",(e.clientX+12)+"px").style("top",(e.clientY-20)+"px");
+}).on("mouseout", () => tooltip.style("display","none"))
+.on("click", (e,d) => { copyAddr(d.id); });
+
+link.on("mouseover", (e,d) => {
+  const volLine = graphOnchain ? "" : (" | Vol: $" + d.volume.toLocaleString(undefined,{maximumFractionDigits:2}));
+  const label = graphOnchain ? "Transfer rows" : "Trades";
+  const scoreLabel = graphOnchain ? "Link score" : "Suspicion";
+  tooltip.style("display","block").html(
+    d.source.id.slice(0,10) + " ↔ " + d.target.id.slice(0,10) + "<br>" +
+    label + ": " + d.trades + volLine + "<br>" +
+    scoreLabel + ": " + d.score.toFixed(2) + (!graphOnchain && d.selfTrade ? " (SELF-TRADE)" : "")
+  );
+}).on("mousemove", e => {
+  tooltip.style("left",(e.clientX+12)+"px").style("top",(e.clientY-20)+"px");
+}).on("mouseout", () => tooltip.style("display","none"));
+
+sim.on("tick", () => {
+  link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+  node.attr("cx",d=>d.x).attr("cy",d=>d.y);
+});
+
+d3.select("#minScore").on("input", graphFilter);
+d3.select("#selfOnly").on("change", graphFilter);
+function graphFilter() {
+  const min = +d3.select("#minScore").property("value");
+  d3.select("#scoreVal").text(min);
+  const selfOnly = graphOnchain ? false : d3.select("#selfOnly").property("checked");
+  link.attr("display", d => (d.score >= min && (!selfOnly || d.selfTrade)) ? null : "none");
+}
+
+// --- Sortable Table ---
+const fmt$ = v => "$" + v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtPct = v => (v * 100).toFixed(1) + "%";
+const fmtInt = v => v.toLocaleString();
+const pctile = v => { const p = (v * 100).toFixed(1); return "<span style='color:" + (p >= 99 ? "#22c55e" : p >= 95 ? "#86efac" : p >= 90 ? "#eab308" : "#888") + "'>" + p + "%</span>"; };
+
+let sortKey = "profit";
+let sortAsc = false;
+let searchTerm = "";
+
+function renderTable() {
+  let data = wallets.filter(w => !searchTerm || w.address.toLowerCase().includes(searchTerm));
+  if (sortKey === "address" || sortKey === "pseudonym") {
+    data.sort((a, b) => sortAsc ? (a[sortKey]||"").localeCompare(b[sortKey]||"") : (b[sortKey]||"").localeCompare(a[sortKey]||""));
+  } else {
+    data.sort((a, b) => sortAsc ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey]);
+  }
+
+  const tbody = document.getElementById("walletBody");
+  tbody.innerHTML = data.map((w, i) =>
+    "<tr>" +
+    "<td onclick=\"copyAddr('" + w.address + "')\">" +
+      "<span class=\"addr-links\">" +
+        w.address.slice(0,8) + "..." + w.address.slice(-6) +
+        " <a href=\"https://polygonscan.com/address/" + w.address + "\" target=\"_blank\" title=\"View on Polygonscan\" onclick=\"event.stopPropagation()\">scan</a>" +
+        " <a href=\"https://polymarket.com/profile/" + w.address + "\" target=\"_blank\" title=\"View on Polymarket\" onclick=\"event.stopPropagation()\">PM</a>" +
+      "</span>" +
+    "</td>" +
+    "<td>" + (w.pseudonym || "-") + "</td>" +
+    "<td style='color:" + (w.profit >= 0 ? "#22c55e" : "#ef4444") + "'>" + fmt$(w.profit) + "</td>" +
+    "<td>" + fmt$(w.totalVolume) + "</td>" +
+    "<td>" + fmt$(w.avgTradeSize) + "</td>" +
+    "<td>" + fmtInt(w.totalTrades) + "</td>" +
+    "<td>" + fmtInt(w.uniqueMarkets) + "</td>" +
+    "<td>" + fmt$(w.makerVolume) + "</td>" +
+    "<td>" + fmt$(w.takerVolume) + "</td>" +
+    "<td>" + fmtPct(w.makerPct) + "</td>" +
+    "<td>" + pctile(w.pctVolume) + "</td>" +
+    "<td>" + pctile(w.pctTrades) + "</td>" +
+    "<td>" + pctile(w.pctAvgSize) + "</td>" +
+    "<td>" + pctile(w.pctMarkets) + "</td>" +
+    "</tr>"
+  ).join("");
+}
+
+document.querySelectorAll("th[data-key]").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (sortKey === key) { sortAsc = !sortAsc; } else { sortKey = key; sortAsc = false; }
+    document.querySelectorAll("th").forEach(t => { t.classList.remove("sorted","asc"); });
+    th.classList.add("sorted"); if (sortAsc) th.classList.add("asc");
+    renderTable();
+  });
+});
+
+document.getElementById("walletSearch").addEventListener("input", e => {
+  searchTerm = e.target.value.toLowerCase();
+  renderTable();
+});
+
+renderTable();
+</script>
+</body></html>

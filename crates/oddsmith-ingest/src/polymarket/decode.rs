@@ -1,4 +1,4 @@
-//! The lenient JSON decoding toolkit shared by the Gamma, CLOB and Data API clients.
+//! The lenient JSON decoding toolkit shared by the Gamma, CLOB, Data API and Alchemy clients.
 //!
 //! Rules: keys match case-insensitively (later keys win, `null` is a no-op), `null` leaves a
 //! field at its default, types are checked strictly (a JSON number in a string field is an

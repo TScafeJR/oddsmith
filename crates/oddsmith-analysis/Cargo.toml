@@ -1,6 +1,6 @@
 [package]
 name = "oddsmith-analysis"
-description = "Calibration, overconfidence, poll benchmarking, and correlation analysis with CSV/JSON/HTML reports."
+description = "Calibration, overconfidence, poll benchmarking, correlation and wallet analysis with CSV/JSON/HTML reports."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,9 @@ authors.workspace = true
 
 [dependencies]
 oddsmith-store.workspace = true
+oddsmith-ingest.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
 clap.workspace = true
 postgres.workspace = true
+ureq.workspace = true

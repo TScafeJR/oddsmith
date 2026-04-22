@@ -1,4 +1,4 @@
-//! Client-side rate limiting for the Polymarket APIs.
+//! Client-side rate limiting for the Polymarket and Alchemy APIs.
 //!
 //! Rate limits from the Polymarket docs:
 //!   CLOB general: 9000 req/10s (900/s)
@@ -71,6 +71,7 @@ pub struct RateLimiter {
     pub general: Limiter,
     pub trades: Limiter,
     pub gamma: Limiter,
+    pub alchemy: Limiter,
 }
 
 impl Default for RateLimiter {
@@ -85,6 +86,7 @@ impl RateLimiter {
             general: Limiter::new(800.0, 50), // slightly under 900/s, burst 50
             trades: Limiter::new(18.0, 10),   // slightly under 20/s, burst 10
             gamma: Limiter::new(280.0, 30),   // slightly under 300/s, burst 30
+            alchemy: Limiter::new(8.0, 5),    // conservative for the Alchemy free tier
         }
     }
 
@@ -98,6 +100,10 @@ impl RateLimiter {
 
     pub fn wait_gamma(&self) -> Result<()> {
         self.gamma.wait()
+    }
+
+    pub fn wait_alchemy(&self) -> Result<()> {
+        self.alchemy.wait()
     }
 }
 
