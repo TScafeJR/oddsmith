@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>oddsmith backtester</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 1.6rem; margin-bottom: 4px; }
+.subtitle { color: #666; margin-bottom: 24px; font-size: 0.95rem; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 24px; margin-bottom: 20px; }
+.card h2 { font-size: 1.1rem; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; }
+.form-group label { font-size: 0.82rem; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group input, .form-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #4a90d9; box-shadow: 0 0 0 2px rgba(74,144,217,0.15); }
+.form-group .help { font-size: 0.75rem; color: #999; margin-top: 2px; }
+.presets-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.preset-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
+.preset-btn:hover { border-color: #4a90d9; color: #4a90d9; }
+.preset-btn.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+.upload-label { padding: 6px 14px; border: 1px dashed #aaa; border-radius: 20px; background: #fafafa; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+.upload-label:hover { border-color: #4a90d9; color: #4a90d9; background: #f0f6ff; }
+.upload-label input { display: none; }
+.divider { color: #ccc; font-size: 0.85rem; padding: 0 4px; }
+.run-btn { display: block; width: 100%; padding: 12px; background: #4a90d9; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 16px; transition: background 0.15s; }
+.run-btn:hover { background: #3a7bc8; }
+.run-btn:disabled { background: #ccc; cursor: not-allowed; }
+.download-all-btn { display: inline-block; padding: 10px 20px; background: #27ae60; color: #fff; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: background 0.15s; }
+.download-all-btn:hover { background: #219a52; }
+.header-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 4px; }
+.cancel-btn { display: none; width: 100%; padding: 12px; background: #e74c3c; color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.15s; }
+.cancel-btn:hover { background: #c0392b; }
+.cancel-btn.show { display: block; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.log-panel { display: none; }
+.log-panel.show { display: block; }
+.log-output { background: #1e1e1e; color: #d4d4d4; font-family: 'SF Mono', 'Menlo', 'Monaco', monospace; font-size: 0.82rem; padding: 16px; border-radius: 8px; max-height: 300px; overflow-y: auto; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+.log-output .log-time { color: #888; }
+.log-output .log-error { color: #f44; }
+.log-output .log-done { color: #4ec9b0; }
+.results { display: none; }
+.results.show { display: block; }
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: #f8f9fa; border-radius: 8px; padding: 14px; text-align: center; }
+.stat-card .label { font-size: 0.75rem; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }
+.stat-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+.stat-card .value.positive { color: #27ae60; }
+.stat-card .value.negative { color: #e74c3c; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { text-align: left; padding: 10px 12px; background: #f8f9fa; border-bottom: 2px solid #eee; font-size: 0.78rem; text-transform: uppercase; color: #666; letter-spacing: 0.5px; }
+td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+tr:hover td { background: #fafafa; }
+.edge-positive { color: #27ae60; font-weight: 600; }
+.edge-negative { color: #e74c3c; font-weight: 600; }
+.error-msg { background: #fee; color: #c0392b; padding: 14px; border-radius: 8px; margin-bottom: 16px; display: none; }
+.error-msg.show { display: block; }
+.chart-container { height: 350px; margin-bottom: 20px; }
+.uploaded-name { font-size: 0.82rem; color: #4a90d9; font-weight: 600; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.json-info-toggle { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; color: #666; }
+.json-info-toggle:hover { border-color: #4a90d9; color: #4a90d9; }
+.json-info { display: none; background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; padding: 16px; margin-top: 12px; font-size: 0.85rem; line-height: 1.6; }
+.json-info.show { display: block; }
+.json-info h3 { font-size: 0.9rem; margin-bottom: 8px; }
+.json-info code { background: #e9ecef; padding: 1px 5px; border-radius: 3px; font-family: 'SF Mono', Menlo, monospace; font-size: 0.82rem; }
+.json-info pre { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; line-height: 1.5; margin: 8px 0; }
+.json-info ul { padding-left: 18px; margin: 6px 0; }
+.json-info li { margin: 3px 0; }
+.json-info .field-table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+.json-info .field-table th, .json-info .field-table td { padding: 4px 8px; border: 1px solid #ddd; text-align: left; font-size: 0.82rem; }
+.json-info .field-table th { background: #e9ecef; font-weight: 600; }
+@media (max-width: 768px) {
+  .container { padding: 16px; }
+  h1 { font-size: 1.3rem; }
+  .form-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .presets-row { gap: 6px; }
+  .preset-btn, .upload-label, .json-info-toggle { font-size: 0.8rem; padding: 6px 10px; }
+  .chart-container { height: 260px; }
+  table { font-size: 0.82rem; }
+  th, td { padding: 8px; }
+}
+@media (max-width: 480px) {
+  .container { padding: 12px; }
+  h1 { font-size: 1.1rem; }
+  .form-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat-card .value { font-size: 1.2rem; }
+  .run-btn, .cancel-btn { font-size: 0.9rem; padding: 10px; }
+  .log-output { font-size: 0.75rem; max-height: 200px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header-row">
+    <div>
+      <h1>oddsmith: Polymarket backtester</h1>
+      <p class="subtitle">Configure a strategy and run it against resolved prediction markets</p>
+    </div>
+    <button onclick="downloadAll()" class="download-all-btn">Download All Data (CSVs)</button>
+  </div>
+
+  <div class="card">
+    <h2>Strategy</h2>
+    <div class="presets-row">
+      <button class="preset-btn active" onclick="loadPreset('maker_favorites', this)">Maker Favorites</button>
+      <button class="preset-btn" onclick="loadPreset('fade_longshots', this)">Fade Longshots</button>
+      <button class="preset-btn" onclick="loadPreset('no_below_33', this)">NO Below 33%</button>
+      <button class="preset-btn" onclick="loadPreset('fade_extreme', this)">Fade Extreme Favorites</button>
+      <span class="divider">|</span>
+      <label class="upload-label">
+        Upload JSON
+        <input type="file" accept=".json" onchange="handleFileUpload(event)">
+      </label>
+      <span class="uploaded-name" id="uploadedName"></span>
+      <span class="divider">|</span>
+      <button class="json-info-toggle" onclick="toggleJsonInfo()">? Format</button>
+    </div>
+    <div class="json-info" id="jsonInfo">
+      <h3>Custom Strategy JSON Format</h3>
+      <p>Create a <code>.json</code> file with any of these fields:</p>
+      <table class="field-table">
+        <thead><tr><th>Field</th><th>Type</th><th>Description</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>name</code></td><td>string</td><td>Strategy name</td><td><code>"my_strategy"</code></td></tr>
+          <tr><td><code>side</code></td><td>string</td><td><code>"YES"</code> or <code>"NO"</code></td><td><code>"YES"</code></td></tr>
+          <tr><td><code>min_price</code></td><td>number</td><td>Min YES implied probability (0-1)</td><td><code>0.60</code></td></tr>
+          <tr><td><code>max_price</code></td><td>number</td><td>Max YES implied probability (0-1)</td><td><code>0.90</code></td></tr>
+          <tr><td><code>initial_capital</code></td><td>number</td><td>Starting USDC</td><td><code>10000</code></td></tr>
+          <tr><td><code>position_size</code></td><td>number</td><td>Max per position ($)</td><td><code>200</code></td></tr>
+          <tr><td><code>role</code></td><td>string</td><td><code>"MAKER"</code> or <code>"TAKER"</code> &mdash; picks the fee rate</td><td><code>"MAKER"</code></td></tr>
+          <tr><td><code>maker_fee_rate</code></td><td>number</td><td>Maker fee coefficient: rate &times; p &times; (1&minus;p) per contract</td><td><code>0.0175</code></td></tr>
+          <tr><td><code>taker_fee_rate</code></td><td>number</td><td>Taker fee coefficient: rate &times; p &times; (1&minus;p) per contract</td><td><code>0.07</code></td></tr>
+          <tr><td><code>description</code></td><td>string</td><td>Strategy description</td><td><code>"..."</code></td></tr>
+          <tr><td><code>bucketWidth</code></td><td>string</td><td>Breakdown granularity</td><td><code>"5"</code></td></tr>
+        </tbody>
+      </table>
+      <p>Only include fields you want to override &mdash; omitted fields keep their current values.</p>
+      <p style="margin-top:8px"><strong>Example file:</strong></p>
+      <pre>{
+  "name": "tight_favorites",
+  "side": "YES",
+  "min_price": 0.60,
+  "max_price": 0.85,
+  "initial_capital": 25000,
+  "position_size": 200,
+  "description": "Conservative favorites 60-85c",
+  "bucketWidth": "5"
+}</pre>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Strategy Name</label>
+        <input type="text" id="name" value="maker_favorites">
+      </div>
+      <div class="form-group">
+        <label>Side</label>
+        <select id="side">
+          <option value="YES">YES — buy the outcome</option>
+          <option value="NO">NO — bet against the outcome</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Race Filter</label>
+        <select id="race">
+          <option value="">All races</option>
+          <option value="presidential">Presidential</option>
+          <option value="senate">Senate</option>
+          <option value="house">House</option>
+          <option value="governor">Governor</option>
+          <option value="policy">Policy</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Min YES Probability</label>
+        <input type="number" id="minPrice" value="0.50" min="0" max="1" step="0.01">
+        <span class="help">Lower bound of YES implied prob range</span>
+      </div>
+      <div class="form-group">
+        <label>Max YES Probability</label>
+        <input type="number" id="maxPrice" value="0.95" min="0" max="1" step="0.01">
+        <span class="help">Upper bound of YES implied prob range</span>
+      </div>
+      <div class="form-group">
+        <label>Bucket Width</label>
+        <select id="bucketWidth">
+          <option value="5">5%</option>
+          <option value="10" selected>10%</option>
+          <option value="2">2%</option>
+          <option value="1">1%</option>
+        </select>
+        <span class="help">Granularity for breakdown table</span>
+      </div>
+      <div class="form-group">
+        <label>Initial Capital ($)</label>
+        <input type="number" id="initialCapital" value="10000" min="100" step="100">
+      </div>
+      <div class="form-group">
+        <label>Position Size ($)</label>
+        <input type="number" id="positionSize" value="100" min="1" step="10">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="role">
+          <option value="MAKER">Maker — post limit orders</option>
+          <option value="TAKER">Taker — cross the spread</option>
+        </select>
+        <span class="help">Selects which fee rate applies</span>
+      </div>
+      <div class="form-group">
+        <label>Maker Fee Rate</label>
+        <input type="number" id="makerFeeRate" value="0" min="0" step="0.0025">
+        <span class="help">Fee/contract = rate × p × (1−p). Kalshi: 0.0175</span>
+      </div>
+      <div class="form-group">
+        <label>Taker Fee Rate</label>
+        <input type="number" id="takerFeeRate" value="0" min="0" step="0.01">
+        <span class="help">Fee/contract = rate × p × (1−p). Kalshi: 0.07</span>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="description" value="Buy YES tokens on favorites priced 50-95 cents">
+      </div>
+    </div>
+    <button class="run-btn" id="runBtn" onclick="runBacktest()">Run Backtest</button>
+    <button class="cancel-btn" id="cancelBtn" onclick="cancelBacktest()">Cancel Backtest</button>
+  </div>
+
+  <div class="card log-panel" id="logPanel">
+    <h2>Log</h2>
+    <div class="log-output" id="logOutput"></div>
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="results" id="results">
+    <div class="card">
+      <h2 style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>Results — <span id="resultName"></span></span>
+        <a id="csvDownload" href="/api/backtest/trades.csv" class="run-btn" style="width:auto;display:inline-block;margin:0;padding:8px 16px;font-size:0.85rem;text-decoration:none;text-align:center">Download Trades CSV</a>
+      </h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Total Trades</div>
+          <div class="value" id="totalTrades">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total PnL</div>
+          <div class="value" id="totalPnl">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total Fees</div>
+          <div class="value" id="totalFees">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Avg Return / Trade</div>
+          <div class="value" id="avgReturn">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Win Rate</div>
+          <div class="value" id="winRate">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Sharpe Ratio</div>
+          <div class="value" id="sharpe">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Max Drawdown</div>
+          <div class="value" id="maxDrawdown">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Avg Hold Time</div>
+          <div class="value" id="avgHoldDays">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Win Rate vs Expected (by Bucket)</h2>
+      <div class="chart-container">
+        <canvas id="winChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Bucket Breakdown</h2>
+      <div class="table-wrap"><table>
+        <thead>
+          <tr>
+            <th>Bucket</th>
+            <th>Trades</th>
+            <th>Avg Return</th>
+            <th>Exp Win%</th>
+            <th>B/E Win%</th>
+            <th>Win%</th>
+            <th>Edge</th>
+            <th>Std Dev</th>
+            <th>Fees</th>
+            <th>Total PnL</th>
+          </tr>
+        </thead>
+        <tbody id="bucketBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+<script>
+
+function downloadAll() {
+  window.open('/api/trades.csv', '_blank');
+  window.open('/api/markets.csv', '_blank');
+}
+
+var presets = {
+  maker_favorites: { name:'maker_favorites', side:'YES', minPrice:0.50, maxPrice:0.95, description:'Buy YES tokens on favorites priced 50-95 cents', bucketWidth:'10' },
+  fade_longshots: { name:'fade_longshots', side:'NO', minPrice:0.00, maxPrice:0.10, description:'Buy NO when YES implied prob <10%', bucketWidth:'2' },
+  no_below_33: { name:'no_below_33', side:'NO', minPrice:0.00, maxPrice:0.33, description:'Buy NO when YES implied prob <33%', bucketWidth:'5' },
+  fade_extreme: { name:'fade_extreme_favorites', side:'NO', minPrice:0.95, maxPrice:1.00, description:'Buy NO when YES implied prob >95%', bucketWidth:'1' }
+};
+
+function loadPreset(key, btn) {
+  var p = presets[key];
+  applyStrategy(p);
+  document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  document.getElementById('uploadedName').textContent = '';
+}
+
+function applyStrategy(p) {
+  if (p.name) document.getElementById('name').value = p.name;
+  if (p.side) document.getElementById('side').value = p.side;
+  if (p.minPrice !== undefined) document.getElementById('minPrice').value = p.minPrice;
+  if (p.min_price !== undefined) document.getElementById('minPrice').value = p.min_price;
+  if (p.maxPrice !== undefined) document.getElementById('maxPrice').value = p.maxPrice;
+  if (p.max_price !== undefined) document.getElementById('maxPrice').value = p.max_price;
+  if (p.description) document.getElementById('description').value = p.description;
+  if (p.bucketWidth) document.getElementById('bucketWidth').value = p.bucketWidth;
+  if (p.initial_capital) document.getElementById('initialCapital').value = p.initial_capital;
+  if (p.position_size) document.getElementById('positionSize').value = p.position_size;
+  if (p.role) document.getElementById('role').value = p.role.toUpperCase();
+  if (p.maker_fee_rate !== undefined) document.getElementById('makerFeeRate').value = p.maker_fee_rate;
+  if (p.taker_fee_rate !== undefined) document.getElementById('takerFeeRate').value = p.taker_fee_rate;
+}
+
+function toggleJsonInfo() {
+  document.getElementById('jsonInfo').classList.toggle('show');
+}
+
+function handleFileUpload(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var strategy = JSON.parse(e.target.result);
+      applyStrategy(strategy);
+      document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('uploadedName').textContent = file.name;
+    } catch(err) {
+      alert('Invalid JSON file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function makeBuckets(min, max, width) {
+  var buckets = [];
+  var minPct = Math.round(min * 100);
+  var maxPct = Math.round(max * 100);
+  for (var i = minPct; i <= maxPct; i += width) {
+    buckets.push(i);
+  }
+  if (buckets[buckets.length-1] < maxPct) buckets.push(maxPct);
+  return buckets;
+}
+
+function logTime() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+function appendLog(msg, cls) {
+  var el = document.getElementById('logOutput');
+  var line = document.createElement('div');
+  line.className = 'log-line' + (cls ? ' ' + cls : '');
+  line.innerHTML = '<span class="log-time">[' + logTime() + ']</span> ' + escapeHtml(msg);
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+var backtestChart = null;
+
+function cancelBacktest() {
+  fetch('/api/backtest/cancel', { method: 'POST' }).then(function() {
+    appendLog('cancel requested...', 'log-error');
+  });
+}
+
+function runBacktest() {
+  var btn = document.getElementById('runBtn');
+  var cancelBtn = document.getElementById('cancelBtn');
+  var errEl = document.getElementById('errorMsg');
+  var logPanel = document.getElementById('logPanel');
+  var logOutput = document.getElementById('logOutput');
+
+  errEl.classList.remove('show');
+  document.getElementById('results').classList.remove('show');
+  logOutput.innerHTML = '';
+  logPanel.classList.add('show');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Running backtest...';
+  cancelBtn.classList.add('show');
+
+  var width = parseInt(document.getElementById('bucketWidth').value);
+  var minP = parseFloat(document.getElementById('minPrice').value);
+  var maxP = parseFloat(document.getElementById('maxPrice').value);
+
+  var body = {
+    name: document.getElementById('name').value,
+    description: document.getElementById('description').value,
+    side: document.getElementById('side').value,
+    min_price: minP,
+    max_price: maxP,
+    race_filter: document.getElementById('race').value,
+    initial_capital: parseFloat(document.getElementById('initialCapital').value),
+    position_size: parseFloat(document.getElementById('positionSize').value),
+    role: document.getElementById('role').value,
+    maker_fee_rate: parseFloat(document.getElementById('makerFeeRate').value) || 0,
+    taker_fee_rate: parseFloat(document.getElementById('takerFeeRate').value) || 0,
+    buckets: makeBuckets(minP, maxP, width)
+  };
+
+  appendLog('submitting backtest request...');
+
+  fetch('/api/backtest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(function(resp) {
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+
+    function read() {
+      return reader.read().then(function(result) {
+        if (result.done) {
+          btn.disabled = false;
+          btn.textContent = 'Run Backtest';
+          cancelBtn.classList.remove('show');
+          return;
+        }
+
+        buffer += decoder.decode(result.value, { stream: true });
+        var lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        var currentEvent = 'log';
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          if (line.indexOf('event: ') === 0) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.indexOf('data: ') === 0) {
+            var data = line.slice(6);
+            if (currentEvent === 'log') {
+              appendLog(data);
+            } else if (currentEvent === 'error') {
+              appendLog(data, 'log-error');
+              errEl.textContent = data;
+              errEl.classList.add('show');
+            } else if (currentEvent === 'result') {
+              appendLog('rendering results...', 'log-done');
+              showResults(JSON.parse(data));
+            }
+          }
+        }
+        return read();
+      });
+    }
+    return read();
+  }).catch(function(e) {
+    appendLog('request failed: ' + e.message, 'log-error');
+    errEl.textContent = 'Request failed: ' + e.message;
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Run Backtest';
+    cancelBtn.classList.remove('show');
+  });
+}
+
+function showResults(data) {
+  document.getElementById('resultName').textContent = data.strategy.name + ' (side=' + data.strategy.side + ', role=' + data.strategy.role + ')';
+  document.getElementById('totalTrades').textContent = data.total_trades.toLocaleString();
+
+  var pnlEl = document.getElementById('totalPnl');
+  pnlEl.textContent = '$' + data.total_pnl.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  pnlEl.className = 'value ' + (data.total_pnl >= 0 ? 'positive' : 'negative');
+
+  document.getElementById('totalFees').textContent = '$' + data.total_fees.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  var avgEl = document.getElementById('avgReturn');
+  avgEl.textContent = (data.avg_return_pct * 100).toFixed(2) + '%';
+  avgEl.className = 'value ' + (data.avg_return_pct >= 0 ? 'positive' : 'negative');
+
+  var wrEl = document.getElementById('winRate');
+  wrEl.textContent = (data.win_rate * 100).toFixed(1) + '%';
+  wrEl.className = 'value ' + (data.win_rate >= 0.5 ? 'positive' : 'negative');
+
+  document.getElementById('sharpe').textContent = data.sharpe_ratio.toFixed(3) + ' (ann.)';
+  var ddEl = document.getElementById('maxDrawdown');
+  ddEl.textContent = (data.max_drawdown * 100).toFixed(1) + '%';
+  ddEl.className = 'value negative';
+  document.getElementById('avgHoldDays').textContent = data.avg_hold_days.toFixed(1) + ' days';
+
+  var tbody = document.getElementById('bucketBody');
+  tbody.innerHTML = '';
+  var buckets = data.bucket_breakdown || [];
+  buckets.forEach(function(b) {
+    var edge = b.WinRate - b.BreakevenWinPct; // net of fees; equals WinRate - ExpectedWinPct when fees are 0
+    var edgeClass = edge >= 0 ? 'edge-positive' : 'edge-negative';
+    var edgeSign = edge >= 0 ? '+' : '';
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + b.Bucket + '</td>' +
+      '<td>' + b.TradeCount.toLocaleString() + '</td>' +
+      '<td>' + (b.AvgReturn*100).toFixed(2) + '%</td>' +
+      '<td>' + (b.ExpectedWinPct*100).toFixed(1) + '%</td>' +
+      '<td>' + (b.BreakevenWinPct*100).toFixed(1) + '%</td>' +
+      '<td>' + (b.WinRate*100).toFixed(1) + '%</td>' +
+      '<td class="' + edgeClass + '">' + edgeSign + (edge*100).toFixed(1) + '%</td>' +
+      '<td>' + (b.StdDev*100).toFixed(2) + '%</td>' +
+      '<td>$' + b.TotalFees.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td>' +
+      '<td>$' + b.TotalPnL.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  var labels = buckets.map(function(b) { return b.Bucket; });
+  var actualWin = buckets.map(function(b) { return b.WinRate*100; });
+  var expectedWin = buckets.map(function(b) { return b.ExpectedWinPct*100; });
+
+  if (backtestChart) backtestChart.destroy();
+  backtestChart = new Chart(document.getElementById('winChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Actual Win%', data: actualWin, backgroundColor: 'rgba(39,174,96,0.7)', borderRadius: 4 },
+        { label: 'Expected Win%', data: expectedWin, backgroundColor: 'rgba(74,144,217,0.35)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Win Rate (%)' } },
+        x: { title: { display: true, text: 'YES Implied Probability Bucket' } }
+      }
+    }
+  });
+
+  document.getElementById('results').classList.add('show');
+}
+
+</script>
+</body>
+</html>

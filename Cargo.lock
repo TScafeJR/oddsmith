@@ -936,6 +936,7 @@ dependencies = [
  "oddsmith-backtest",
  "oddsmith-core",
  "oddsmith-ingest",
+ "oddsmith-server",
  "oddsmith-store",
  "serde_json",
  "tempfile",
@@ -964,6 +965,19 @@ dependencies = [
  "serde_json",
  "tempfile",
  "ureq",
+]
+
+[[package]]
+name = "oddsmith-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "oddsmith-backtest",
+ "oddsmith-core",
+ "oddsmith-store",
+ "postgres",
 ]
 
 [[package]]

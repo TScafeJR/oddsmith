@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 
 use crate::export::{ParquetTrade, upload_parquet_chunked, write_parquet_file};
 
-/// Callback that receives log lines (each ends in `\n`); lets callers stream progress.
+/// Callback that receives log lines (each ends in `\n`); used to stream progress to the web UI.
 pub type LogFn = Arc<dyn Fn(&str) + Send + Sync>;
 
 /// Output of a backtest run.
@@ -32,7 +32,7 @@ pub struct Engine {
     pub db: Db,
     pub strategy: Strategy,
     pub verbose: bool,
-    /// Skip writing results to the database (library calls).
+    /// Skip writing results to the database (web UI, library calls).
     pub skip_persist: bool,
     pub log: Option<LogFn>,
     /// For parquet upload to Supabase Storage.

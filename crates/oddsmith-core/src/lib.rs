@@ -1,6 +1,6 @@
 //! The pure core of the backtester. Nothing here touches the network or a database:
 //! callers hand in [`BacktestTrade`] rows and get positions and metrics back, so the
-//! same code runs from the CLI and the tests.
+//! same code runs from the CLI, the web UI and the tests.
 
 pub mod engine;
 pub mod metrics;

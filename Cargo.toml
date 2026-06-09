@@ -15,6 +15,7 @@ oddsmith-store = { path = "crates/oddsmith-store" }
 oddsmith-backtest = { path = "crates/oddsmith-backtest" }
 oddsmith-ingest = { path = "crates/oddsmith-ingest" }
 oddsmith-analysis = { path = "crates/oddsmith-analysis" }
+oddsmith-server = { path = "crates/oddsmith-server" }
 
 anyhow = "=1.0.104"
 bytes = "=1.12.1"

@@ -45,6 +45,8 @@ enum Command {
     Analyze(AnalyzeCommand),
     /// Real-time terminal display of live political markets
     Monitor(MonitorArgs),
+    /// Start the web UI for configuring and running backtests
+    Serve(ServeArgs),
 }
 
 #[derive(Debug, Args)]
@@ -67,6 +69,13 @@ struct MonitorArgs {
     refresh: String,
 }
 
+#[derive(Debug, Args)]
+struct ServeArgs {
+    /// Port to listen on
+    #[arg(long, default_value_t = 8080)]
+    port: u16,
+}
+
 fn run(cli: Cli) -> Result<()> {
     let ctx = Ctx { verbose: cli.verbose, db_url: cli.db_url };
     match cli.command {
@@ -84,6 +93,12 @@ fn run(cli: Cli) -> Result<()> {
         Command::Monitor(_) => {
             println!("monitor mode...");
             bail!("not yet implemented")
+        }
+        Command::Serve(args) => {
+            let cfg = ctx.config()?;
+            let db = ctx.connect(&cfg)?;
+            println!("backtest UI available at http://localhost:{}", args.port);
+            oddsmith_server::serve(db, args.port)
         }
     }
 }
