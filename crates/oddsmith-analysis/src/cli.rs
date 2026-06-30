@@ -1,10 +1,13 @@
 //! `oddsmith analyze` subcommands.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
+use chrono::{TimeZone, Utc};
 use clap::{Args, Subcommand};
 use oddsmith_store::Ctx;
 
+use crate::beta::{compute_crypto_beta, print_beta_table, write_beta_summary_json};
 use crate::charts::{compute_calibration_chart_data, write_calibration_chart_html};
+use crate::crypto::ensure_crypto_prices;
 use crate::overconfidence::{compute_overconfidence, write_overconfidence_csv, write_overconfidence_summary_json};
 use crate::textfmt::{fixed, fixed_signed};
 use crate::util::{join, make_dirs, os_err};
@@ -18,6 +21,8 @@ pub enum AnalyzeCommand {
     Wallets(WalletsArgs),
     /// Measure overconfidence: calibration errors, Brier score decomposition
     Overconfidence(OverconfidenceArgs),
+    /// Compute crypto beta: benchmark portfolio returns against BTC and ETH
+    Beta(BetaArgs),
     /// Generate FLB calibration curve chart and price analysis (HTML)
     Charts(ChartsArgs),
 }
@@ -59,6 +64,22 @@ pub struct OverconfidenceArgs {
 }
 
 #[derive(Debug, Args)]
+pub struct BetaArgs {
+    /// directory for CSV/JSON output (default ./output)
+    #[arg(long, value_name = "OUTPUT_DIR", default_value = "./output", hide_default_value = true)]
+    pub output_dir: String,
+    /// annualized risk-free rate (default 4%)
+    #[arg(
+        long,
+        value_name = "RISK_FREE_RATE",
+        default_value_t = 0.04,
+        hide_default_value = true,
+        allow_negative_numbers = true
+    )]
+    pub risk_free_rate: f64,
+}
+
+#[derive(Debug, Args)]
 pub struct ChartsArgs {
     /// directory for HTML output (default ./output)
     #[arg(long, value_name = "OUTPUT_DIR", default_value = "./output", hide_default_value = true)]
@@ -83,6 +104,7 @@ impl AnalyzeCommand {
             AnalyzeCommand::All(a) => run_all(a, ctx),
             AnalyzeCommand::Wallets(a) => run_wallets(a, ctx),
             AnalyzeCommand::Overconfidence(a) => run_overconfidence(a, ctx),
+            AnalyzeCommand::Beta(a) => run_beta(a, ctx),
             AnalyzeCommand::Charts(a) => run_charts(a, ctx),
         }
     }
@@ -166,5 +188,49 @@ fn run_charts(args: &ChartsArgs, ctx: &Ctx) -> Result<()> {
         data.total_trades,
         data.total_markets
     );
+    Ok(())
+}
+
+fn run_beta(args: &BetaArgs, ctx: &Ctx) -> Result<()> {
+    let cfg = ctx.config()?;
+    let output_dir = &args.output_dir;
+    let db = ctx.connect(&cfg)?;
+
+    // Date range for crypto prices (2020-2024).
+    let from = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap();
+    let to = Utc.with_ymd_and_hms(2024, 12, 31, 0, 0, 0).unwrap();
+    let benchmarks = [("BTC", "bitcoin"), ("ETH", "ethereum")];
+
+    println!("computing crypto beta analysis...");
+
+    let mut results = Vec::new();
+    for (symbol, coin_gecko_id) in benchmarks {
+        println!("  loading {symbol} prices...");
+        let prices = match ensure_crypto_prices(&db, symbol, coin_gecko_id, from, to, cfg.verbose) {
+            Ok(p) => p,
+            Err(e) => {
+                println!("  warning: {symbol} prices: {e:#}");
+                continue;
+            }
+        };
+        match compute_crypto_beta(&db, &prices, symbol, 10000.0, args.risk_free_rate) {
+            Ok(r) => results.push(r),
+            Err(e) => {
+                println!("  warning: {symbol} beta: {e:#}");
+                continue;
+            }
+        }
+    }
+
+    if results.is_empty() {
+        bail!("no beta results computed; ensure backtest has been run first");
+    }
+
+    mkdir(output_dir)?;
+    write_beta_summary_json(&join(output_dir, "beta_summary.json"), &results)
+        .map_err(|e| anyhow!("writing JSON: {e:#}"))?;
+
+    print_beta_table(&results);
+    println!("\nOutput written to {output_dir}/beta_summary.json");
     Ok(())
 }

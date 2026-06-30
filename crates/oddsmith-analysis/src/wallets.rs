@@ -2,7 +2,6 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::Read;
 use std::thread;
 use std::time::Duration;
 
@@ -12,25 +11,13 @@ use oddsmith_ingest::chain::blocklist::is_polymarket_protocol;
 use oddsmith_store::{Db, Num, RowExt};
 use postgres::Row;
 
+use crate::crypto::http_get;
 use crate::json::{Json, JsonStyle, compact_html_json, serialize};
 use crate::jsonvalue::{self, Value};
 use crate::textfmt::{ff, round_half_away_floor};
 use crate::util::{Csv, join, make_dirs, os_err, pg, render};
 
 const TEMPLATE: &str = include_str!("../templates/wallet_graph.html");
-
-/// The User-Agent sent with leaderboard requests.
-const USER_AGENT: &str = "oddsmith/0.1";
-
-/// Send a GET and return `(status, body)`. Non-2xx responses are returned, not errors.
-fn http_get(url: &str, timeout: Duration) -> Result<(u16, Vec<u8>)> {
-    let agent = oddsmith_store::http::agent(timeout);
-    let mut resp = agent.get(url).header("User-Agent", USER_AGENT).call()?;
-    let status = resp.status().as_u16();
-    let mut body = Vec::new();
-    resp.body_mut().as_reader().read_to_end(&mut body)?;
-    Ok((status, body))
-}
 
 const BUILD_PROFILES_SQL: &str = "
 		INSERT INTO wallet_profiles (address, first_seen, last_seen, total_trades, total_volume,
