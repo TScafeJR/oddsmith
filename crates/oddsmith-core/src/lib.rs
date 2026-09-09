@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 
 pub use engine::{Cancelled, CapitalLedger, apply_capital, simulate};
 pub use metrics::{BucketJson, BucketMetrics, PortfolioMetrics, Position, compute_portfolio_metrics};
-pub use research::TradeSource;
+pub use research::{Interval, ParamValue, RollingRow, SweepRow, TradeSource};
 pub use strategy::{JsonObject, Strategy, Window, WindowBy, load_strategy, strategy_from_json};
 
 /// One qualifying trade on a resolved market, as loaded for a backtest.

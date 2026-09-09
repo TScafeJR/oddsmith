@@ -49,7 +49,7 @@ impl<'a> Labeler<'a> {
 /// Turn qualifying trades into simulated positions held to resolution.
 ///
 /// This is the pure core of the backtest: no database access, so it can be run
-/// repeatedly in memory and tested with fixture data.
+/// repeatedly in memory (sweeps, rolling windows) and tested with fixture data.
 /// `cancel` is checked every 100k trades; `log` receives progress lines (each ending in `\n`).
 pub fn simulate(
     trades: &[BacktestTrade],

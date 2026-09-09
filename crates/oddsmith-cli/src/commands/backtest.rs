@@ -3,6 +3,7 @@
 use anyhow::{Result, anyhow, bail};
 use clap::Args;
 use oddsmith_backtest::Engine;
+use oddsmith_core::research::{bootstrap_ci, edge, mean, rolling, write_rolling_csv};
 use oddsmith_core::strategy::{load_strategy, parse_buckets};
 use oddsmith_core::textfmt::{self, fixed, signed};
 use oddsmith_core::{Strategy, Window};
@@ -26,6 +27,7 @@ Usage:
   oddsmith backtest --strategy strategies/no_below_33.json --role TAKER --taker-fee-rate 0.07
   oddsmith backtest --strategy strategies/maker_favorites.json --from 2024-01-01 --to 2024-11-05
   oddsmith backtest --strategy strategies/fade_longshots.json --window-by resolved --enforce-capital
+  oddsmith backtest --strategy strategies/maker_favorites.json --rolling 90 --step 30 --bootstrap 1000
 
 Fees are charged per contract as rate \u{d7} p \u{d7} (1\u{2212}p), where p is the price of the
 token bought (Kalshi-style schedule). Both rates default to 0 (Polymarket has no
@@ -34,11 +36,32 @@ exchange fee on most markets); --role picks which rate applies.
 Trades are replayed in time order. --from/--to restrict the run to a date window
 (inclusive, YYYY-MM-DD) on entry time, or on resolution time with
 --window-by resolved. --enforce-capital caps open exposure at --initial-capital:
-entries are skipped when cash runs out, and cash comes back when markets resolve.";
+entries are skipped when cash runs out, and cash comes back when markets resolve.
+
+--rolling N --step M recomputes the metrics over N-day windows of entry time,
+stepping M days, to show whether the edge is stable or fading (written to
+rolling_<name>.csv). --bootstrap N adds 95% confidence intervals for the average
+return and win rate from N resamples.";
 
 /// A float flag value: surrounding whitespace, `_` between digits, `inf` and `nan` allowed.
 pub(crate) fn float_arg(s: &str) -> Result<f64, String> {
     textfmt::parse_float(s).ok_or_else(|| format!("invalid float value: {}", textfmt::quote_str(s)))
+}
+
+/// An integer flag value: optional sign, surrounding whitespace and single `_` between
+/// digits allowed.
+pub(crate) fn int_arg(s: &str) -> Result<i64, String> {
+    let t = s.trim();
+    let digits = t.trim_start_matches(['+', '-']);
+    let ok = t.len() - digits.len() <= 1
+        && !digits.is_empty()
+        && !digits.starts_with('_')
+        && !digits.ends_with('_')
+        && !digits.contains("__")
+        && digits.bytes().all(|b| b.is_ascii_digit() || b == b'_');
+    ok.then(|| t.replace('_', "").parse().ok())
+        .flatten()
+        .ok_or_else(|| format!("invalid int value: {}", textfmt::quote_str(s)))
 }
 
 // Flags left unset keep the strategy file's values; set ones override them.
@@ -90,6 +113,18 @@ pub struct BacktestArgs {
     /// Skip entries once open exposure would exceed --initial-capital
     #[arg(long)]
     enforce_capital: bool,
+    /// Also report metrics over rolling windows of this many days
+    #[arg(long, value_name = "DAYS", default_value = "0", value_parser = int_arg, allow_negative_numbers = true)]
+    rolling: i64,
+    /// Step between rolling windows
+    #[arg(long, value_name = "DAYS", default_value = "30", value_parser = int_arg, allow_negative_numbers = true)]
+    step: i64,
+    /// Bootstrap resamples for 95% confidence intervals (0 to skip)
+    #[arg(long, value_name = "N", default_value = "0", value_parser = int_arg, allow_negative_numbers = true)]
+    bootstrap: i64,
+    /// Directory for the rolling-window CSV
+    #[arg(long, default_value = "./output")]
+    output_dir: String,
     /// Custom bucket boundaries (e.g. "0,5,10,20,30,40,50,60,70,80,90,95,98,100")
     #[arg(long = "buckets", default_value = "", hide_default_value = true)]
     buckets_str: String,
@@ -212,6 +247,7 @@ pub fn run(args: &BacktestArgs, ctx: &Ctx) -> Result<()> {
     println!("Sharpe ratio:     {} (annualized, rf=4%)", fixed(m.sharpe_ratio, 3));
     println!("Max drawdown:     {}%", fixed(m.max_drawdown * 100.0, 1));
     println!("Avg hold time:    {} days", fixed(m.avg_hold_days, 1));
+    println!("Edge vs price:    {} pts (win rate minus avg entry price)", signed(edge(&result.positions) * 100.0, 2));
     if strat.enforce_capital {
         println!(
             "Capital:          ${} -> ${} ({}%)",
@@ -240,6 +276,46 @@ pub fn run(args: &BacktestArgs, ctx: &Ctx) -> Result<()> {
             fixed(b.std_dev * 100.0, 2),
             fixed(b.total_fees, 2)
         );
+    }
+
+    if args.bootstrap > 0 {
+        let resamples = args.bootstrap as usize;
+        let returns: Vec<f64> = result.positions.iter().map(|p| p.return_pct).collect();
+        let wins: Vec<f64> = result.positions.iter().map(|p| if p.pnl + p.fee > 0.0 { 1.0 } else { 0.0 }).collect();
+        let ret_ci = bootstrap_ci(&returns, mean, resamples, 0.05, 0);
+        let win_ci = bootstrap_ci(&wins, mean, resamples, 0.05, 0);
+        if let (Some(r), Some(w)) = (ret_ci, win_ci) {
+            println!("\nBootstrap 95% CI ({} resamples):", args.bootstrap);
+            println!("  Avg return/trade: {}% to {}%", signed(r.low * 100.0, 2), signed(r.high * 100.0, 2));
+            println!("  Win rate:         {}% to {}%", fixed(w.low * 100.0, 1), fixed(w.high * 100.0, 1));
+        }
+    }
+
+    if args.rolling > 0 {
+        let windows = rolling(&result.positions, args.rolling, args.step)
+            .map_err(|e| anyhow!("invalid --rolling/--step: {e}"))?;
+        println!("\nRolling {}-day windows (step {} days):", args.rolling, args.step);
+        println!(
+            "  {:<10} {:<10} {:>7} {:>9} {:>7} {:>8} {:>8}",
+            "Start", "End", "Trades", "Avg Ret", "Win%", "Edge", "Sharpe"
+        );
+        for w in &windows {
+            println!(
+                "  {:<10} {:<10} {:>7} {:>8}% {:>6}% {:>7}% {:>8}",
+                w.start.date_naive().format("%Y-%m-%d").to_string(),
+                w.end.date_naive().format("%Y-%m-%d").to_string(),
+                w.total_trades,
+                fixed(w.avg_return * 100.0, 2),
+                fixed(w.win_rate * 100.0, 1),
+                signed(w.edge * 100.0, 2),
+                fixed(w.sharpe, 3)
+            );
+        }
+        std::fs::create_dir_all(&args.output_dir)?;
+        let name = if strat.name.is_empty() { "strategy" } else { strat.name.as_str() };
+        let path = textfmt::path_join(&args.output_dir, &format!("rolling_{name}.csv"));
+        write_rolling_csv(path.as_ref(), &windows)?;
+        println!("  wrote {path}");
     }
     Ok(())
 }

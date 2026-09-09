@@ -10,7 +10,7 @@ use oddsmith_analysis::cli::AnalyzeCommand;
 use oddsmith_ingest::cli::IngestCommand;
 use oddsmith_store::Ctx;
 
-use commands::backtest;
+use commands::{backtest, sweep};
 
 /// Polymarket Favorite-Longshot Bias tool. Gather political prediction market data from
 /// Polymarket, benchmark against polls, and backtest a maker-on-favorites strategy.
@@ -29,8 +29,6 @@ struct Cli {
     command: Command,
 }
 
-// BacktestArgs holds every strategy flag; boxing it buys nothing for a CLI parsed once.
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Run database migrations against Supabase
@@ -40,6 +38,8 @@ enum Command {
     Ingest(IngestCommand),
     /// Simulate a trading strategy on resolved political markets
     Backtest(backtest::BacktestArgs),
+    /// Run a parameter sweep over a strategy and rank the variants
+    Sweep(sweep::SweepArgs),
     /// Generate statistics, CSVs and charts from ingested data
     #[command(subcommand)]
     Analyze(AnalyzeCommand),
@@ -89,6 +89,7 @@ fn run(cli: Cli) -> Result<()> {
         }
         Command::Ingest(cmd) => cmd.run(&ctx),
         Command::Backtest(args) => backtest::run(&args, &ctx),
+        Command::Sweep(args) => sweep::run(&args, &ctx),
         Command::Analyze(cmd) => cmd.run(&ctx),
         Command::Monitor(_) => {
             println!("monitor mode...");

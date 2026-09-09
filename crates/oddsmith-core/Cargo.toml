@@ -1,6 +1,6 @@
 [package]
 name = "oddsmith-core"
-description = "Pure backtest engine: strategies, simulation and metrics, with no I/O."
+description = "Pure backtest engine: strategies, simulation, metrics, sweeps and rolling windows. No I/O besides writing report files."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
