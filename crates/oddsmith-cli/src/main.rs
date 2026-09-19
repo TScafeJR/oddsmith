@@ -8,9 +8,10 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 use oddsmith_analysis::cli::AnalyzeCommand;
 use oddsmith_ingest::cli::IngestCommand;
+use oddsmith_server::csv_export::CsvExportArgs;
 use oddsmith_store::Ctx;
 
-use commands::{backtest, sweep};
+use commands::{backtest, export, sweep};
 
 /// Polymarket Favorite-Longshot Bias tool. Gather political prediction market data from
 /// Polymarket, benchmark against polls, and backtest a maker-on-favorites strategy.
@@ -47,6 +48,9 @@ enum Command {
     Monitor(MonitorArgs),
     /// Start the web UI for configuring and running backtests
     Serve(ServeArgs),
+    /// Export backtest trades to parquet, or the markets and trades tables to CSV
+    #[command(subcommand)]
+    Export(ExportCommand),
 }
 
 #[derive(Debug, Args)]
@@ -76,6 +80,14 @@ struct ServeArgs {
     port: u16,
 }
 
+#[derive(Debug, Subcommand)]
+enum ExportCommand {
+    /// Export backtest trades to parquet files
+    Parquet(export::ParquetArgs),
+    /// Export the markets and trades tables to CSV
+    Csv(CsvExportArgs),
+}
+
 fn run(cli: Cli) -> Result<()> {
     let ctx = Ctx { verbose: cli.verbose, db_url: cli.db_url };
     match cli.command {
@@ -101,6 +113,8 @@ fn run(cli: Cli) -> Result<()> {
             println!("backtest UI available at http://localhost:{}", args.port);
             oddsmith_server::serve(db, args.port)
         }
+        Command::Export(ExportCommand::Parquet(args)) => export::run_parquet(&args, &ctx),
+        Command::Export(ExportCommand::Csv(args)) => oddsmith_server::csv_export::run(&args, &ctx),
     }
 }
 

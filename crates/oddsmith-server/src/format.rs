@@ -1,4 +1,4 @@
-//! Value formatting for the server's CSV routes.
+//! Value formatting shared by the server's CSV routes and `oddsmith export csv`.
 
 use chrono::{DateTime, Local, Offset, Utc};
 
@@ -113,7 +113,7 @@ pub fn float_slice(vals: Option<&[f64]>) -> String {
     format!("[{}]", parts.join(" "))
 }
 
-/// The markets query behind `/api/markets.csv`.
+/// The markets query shared by `/api/markets.csv` and `oddsmith export csv`.
 pub const MARKETS_SQL: &str = "
         SELECT id, event_id, question, slug, condition_id,
                active, closed, resolved, resolution, end_date,

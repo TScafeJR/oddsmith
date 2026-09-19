@@ -1,6 +1,7 @@
 //! The backtest web UI: a small threaded HTTP server that serves the page, runs backtests
 //! with progress streamed as server-sent events, and offers CSV downloads.
 
+pub mod csv_export;
 mod format;
 mod http;
 mod json;
