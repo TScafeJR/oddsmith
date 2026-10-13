@@ -238,6 +238,7 @@ make install        # cargo install the `oddsmith` binary
 make run ARGS="..." # cargo run -p oddsmith-cli -- ...
 make test           # cargo test (ODDSMITH_TEST_DB_URL enables DB tests)
 make lint           # cargo fmt --check + clippy -D warnings
+make bench          # million-trade engine benchmark
 ```
 
 Dependencies are pinned with `=x.y.z` in the root `Cargo.toml`; keep the transitive set small (no async runtime).

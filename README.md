@@ -11,6 +11,7 @@ The project this grew out of answered one question: summed over every resolved m
 - **Realistic runs.** Trades replay in the order they happened, a run can be limited to a date window (by entry date or by resolution date), and `--enforce-capital` holds the strategy to a bankroll, so it only takes positions it could have paid for and drawdown is measured on actual equity.
 - **Parameter sweeps.** `oddsmith sweep` backtests a whole grid of settings at once. Trades are loaded once per side and every variant is simulated in memory, and the results come back ranked, with bootstrap confidence intervals and an HTML heatmap.
 - **Stability over time.** `--rolling` slices a run into sliding windows and reports the edge in each one (the realized win rate minus the price paid), which shows whether the bias held up or only appeared in one part of the data.
+- **Speed.** The simulation lives in a pure Rust crate with no I/O. On a million synthetic trades, simulating a backtest takes about 0.35 seconds and computing its metrics about 0.2 seconds, and 200 bootstrap resamples finish in under a second across 12 threads, so large sweeps and walk-forward testing stay interactive.
 - **Tested core.** The simulation has hand-checked tests for PnL, fees, Sharpe, drawdown and the capital ledger, and CI runs formatting, clippy and the test suite on every push.
 
 ## Quickstart

@@ -174,6 +174,7 @@ strategies/                Strategy JSON files
 make build    # cargo build
 make test     # cargo test (set ODDSMITH_TEST_DB_URL to include the database tests)
 make lint     # cargo fmt --check and clippy -D warnings
+make bench    # simulate + metrics + bootstrap on a million synthetic trades
 make run ARGS="backtest --min-price 0.6"
 ```
 

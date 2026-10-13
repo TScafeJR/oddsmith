@@ -1,4 +1,4 @@
-.PHONY: build release install run migrate test lint fmt clean
+.PHONY: build release install run migrate test lint fmt bench clean
 
 build:
 	cargo build
@@ -24,6 +24,9 @@ lint:
 
 fmt:
 	cargo fmt --all
+
+bench:
+	cargo run --release -p oddsmith-core --example bench
 
 clean:
 	cargo clean
