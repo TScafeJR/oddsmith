@@ -60,7 +60,7 @@ Remote **Supabase PostgreSQL**, shared via connection string.
 | Alchemy Polygon | `polygon-mainnet.g.alchemy.com/v2/...` | API key in URL | **On-chain transfers** (`alchemy_getAssetTransfers`) |
 | CoinGecko | `api.coingecko.com` | None | BTC/ETH daily prices |
 
-**Important:** The CLOB `/trades` endpoint returns 401 (requires API key). We use the Data API instead (`data-api.polymarket.com/trades?market=CONDITION_ID`). The `market` param must be the `0x`-prefixed condition ID hash.
+**Important:** The CLOB `/trades` endpoint returns 401 (requires API key). We use the Data API instead (`data-api.polymarket.com/trades?market=CONDITION_ID`). The `market` param must be the `0x`-prefixed condition ID hash. Gamma `/events` with `limit` above 50 returns 406 unless the request accepts gzip (ureq does).
 
 ### Dune: exploratory on-chain links (no `oddsmith` required)
 
