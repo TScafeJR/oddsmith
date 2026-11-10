@@ -135,6 +135,7 @@ The goal is a download-and-run app for people who want to explore the bias witho
 
 ## 7. Data coverage and more venues
 
+- [ ] **Data API v2.** The v1 `/trades` endpoint now returns 410 Gone, so trade ingest needs to move to v2, which takes a `condition` parameter and returns snake_case fields inside a `data` wrapper.
 - [ ] **Remove the 10k-trade cap.** The Data API returns at most 10,000 trades per market. Backfill busy markets from on-chain `OrderFilled` events or the Polymarket subgraph.
 - [ ] **Keep maker/taker labels.** Store the maker/taker side for every fill so maker-only backtests and wallet-pair analysis use real labels.
 - [ ] **Order-book history.** Snapshot order books on a schedule so spread and slippage costs (§3b) use observed depth instead of assumptions.

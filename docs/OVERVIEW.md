@@ -144,7 +144,7 @@ oddsmith sweep --param side=YES,NO --param min_price=0.0:0.9:0.1 --metric edge
 | Source | Endpoint | Used for |
 |--------|----------|----------|
 | Polymarket Gamma | `gamma-api.polymarket.com` | Events, markets, tags, resolutions |
-| Polymarket Data API | `data-api.polymarket.com/trades?market=<condition_id>` | Public trade history (capped at 10,000 trades per market). |
+| Polymarket Data API | `data-api.polymarket.com/trades?market=<condition_id>` | Public trade history (capped at 10,000 trades per market). Version 1 now returns 410 Gone; moving to v2 is on the roadmap |
 | Polymarket CLOB | `clob.polymarket.com` | Order books, price history |
 | Alchemy (Polygon) | `alchemy_getAssetTransfers` | Wallet-to-wallet transfers, excluding protocol contracts ([`blocklist.rs`](../crates/oddsmith-ingest/src/chain/blocklist.rs)) |
 | FiveThirtyEight | CSVs in `data/polls/` | Poll benchmarks |

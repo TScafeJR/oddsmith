@@ -60,7 +60,7 @@ Remote **Supabase PostgreSQL**, shared via connection string.
 | Alchemy Polygon | `polygon-mainnet.g.alchemy.com/v2/...` | API key in URL | **On-chain transfers** (`alchemy_getAssetTransfers`) |
 | CoinGecko | `api.coingecko.com` | None | BTC/ETH daily prices |
 
-**Important:** The CLOB `/trades` endpoint returns 401 (requires API key). We use the Data API instead (`data-api.polymarket.com/trades?market=CONDITION_ID`). The `market` param must be the `0x`-prefixed condition ID hash. Gamma `/events` with `limit` above 50 returns 406 unless the request accepts gzip (ureq does).
+**Important:** The CLOB `/trades` endpoint returns 401 (requires API key). We use the Data API instead (`data-api.polymarket.com/trades?market=CONDITION_ID`). The `market` param must be the `0x`-prefixed condition ID hash. As of November 2026 the v1 Data API `/trades` returns 410 Gone ("Data API v1 has been retired"); v2 takes a `condition` parameter and returns snake_case fields inside a `{"data": [...]}` wrapper. Migrating `oddsmith ingest trades` is on the roadmap. Gamma `/events` with `limit` above 50 returns 406 unless the request accepts gzip (ureq does).
 
 ### Dune: exploratory on-chain links (no `oddsmith` required)
 
@@ -103,6 +103,7 @@ oddsmith ingest trades --race presidential
 - `--workers`: concurrent workers (default 4, but currently sequential due to rate limits)
 - `--batch-size`: trades per DB insert batch (default 500)
 - Data API caps at 10,000 trades per market
+- Currently fails with 410 until it moves to Data API v2 (see above)
 
 ### `oddsmith ingest polls`
 Import 538 polling CSVs from a local directory.

@@ -22,12 +22,14 @@ You need a Rust toolchain (1.85 or newer) and a Postgres database. This project 
 make install            # cargo install the oddsmith binary, with parquet export
 cp .env.example .env    # add SUPABASE_DB_URL
 oddsmith migrate
-oddsmith ingest markets -v && oddsmith ingest trades && oddsmith ingest polls && oddsmith ingest match
+oddsmith ingest markets -v && oddsmith ingest polls && oddsmith ingest match
 oddsmith backtest --strategy strategies/maker_favorites.json --from 2024-01-01 --to 2024-11-05 --enforce-capital
 oddsmith sweep --strategy strategies/maker_favorites.json --param min_price=0.50:0.90:0.05 --param role=MAKER,TAKER --taker-fee-rate 0.07
 oddsmith backtest --strategy strategies/maker_favorites.json --rolling 90 --step 30 --bootstrap 1000
 oddsmith serve          # web UI on http://localhost:8080
 ```
+
+One caveat: Polymarket recently retired version 1 of its public Data API, which `oddsmith ingest trades` still uses, so trade ingest won't work until it moves to v2 (that's first on the roadmap's data list). The other commands work against trades you already have in the database.
 
 The full write-up, with the thesis, every command and the data sources, is in [docs/OVERVIEW.md](docs/OVERVIEW.md).
 
